@@ -15,6 +15,6 @@ f2 = ARGV[1]
 s1 = file_to_set f1
 s2 = file_to_set f2
 
-s1.intersection(s2).each do |elem|
+s1.difference(s2).each do |elem|
   puts elem
 end
