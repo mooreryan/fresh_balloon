@@ -17,31 +17,19 @@
 # along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 
-require "abort_if"
-require "trollop"
+require "parse_fasta"
 
-include AbortIf
-include AbortIf::Assert
+f1 = ARGV[0]
+f2 = ARGV[1]
 
-Signal.trap("PIPE", "EXIT")
-
-opts = Trollop.options do
-  banner <<-EOS
-
-  Works like cut but with option to rearrange output.
-
-  Options:
-  EOS
-
-  opt(:fields, "Order of fields to print", type: :string)
-  opt(:delimiter, "Infile field delimiter", type: :string,
-      default: "\t")
+check_seq = ""
+FastaFile.open(f1).each_record do |head, seq|
+  check_seq = seq.gsub(".", "-")
 end
 
-field_arr = opts[:fields].split(",").map { |s| s.to_i - 1 }
-
-ARGF.each_line do |line|
-  arr = line.chomp.split opts[:delimiter]
-
-  puts field_arr.map { |field| arr[field] }.join(opts[:delimiter])
+FastaFile.open(f2).each_record do |head, seq|
+  if seq.gsub(".", "-") == check_seq
+    puts ">#{head}"
+    puts seq
+  end
 end

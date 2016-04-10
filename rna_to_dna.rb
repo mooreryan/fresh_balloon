@@ -17,31 +17,13 @@
 # along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 
-require "abort_if"
-require "trollop"
+require "parse_fasta"
 
-include AbortIf
-include AbortIf::Assert
-
-Signal.trap("PIPE", "EXIT")
-
-opts = Trollop.options do
-  banner <<-EOS
-
-  Works like cut but with option to rearrange output.
-
-  Options:
-  EOS
-
-  opt(:fields, "Order of fields to print", type: :string)
-  opt(:delimiter, "Infile field delimiter", type: :string,
-      default: "\t")
+def rna_to_dna seq
+  seq.gsub(/U/, "T").gsub(/u/, "t")
 end
 
-field_arr = opts[:fields].split(",").map { |s| s.to_i - 1 }
-
-ARGF.each_line do |line|
-  arr = line.chomp.split opts[:delimiter]
-
-  puts field_arr.map { |field| arr[field] }.join(opts[:delimiter])
+FastaFile.open(ARGV.first, "rt").each_record do |head, seq|
+  puts ">#{head}"
+  puts rna_to_dna(seq)
 end
