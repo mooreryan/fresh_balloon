@@ -8,5 +8,6 @@ end
 ARGV.each do |fname|
   FastaFile.open(fname, "rt").each_record do |head, seq|
     puts "#{clean(fname)}_#{head}"
+    puts seq
   end
 end
