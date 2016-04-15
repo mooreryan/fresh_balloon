@@ -19,15 +19,56 @@
 
 require "parse_fasta"
 require "abort_if"
+require "set"
+
+# monkey patch parse_fasta for speeeeed
+class FastqFile
+  def each_record
+    count = 0
+    header = ''
+    sequence = ''
+    description = ''
+    quality = ''
+
+    begin
+      f = Zlib::GzipReader.open(self)
+    rescue Zlib::GzipFile::Error => e
+      f = self
+    end
+
+    f.each_line do |line|
+      line.chomp!
+
+      case count % 4
+      when 0
+        header = line[1..-1] # line.sub(/^@/, '')
+      when 1
+        sequence = line # Sequence.new(line)
+      when 2
+        description = line[1..-1] # line.sub(/^\+/, '')
+      when 3
+        quality = line # Quality.new(line)
+        yield(header, sequence, description, quality)
+      end
+
+      count += 1
+    end
+
+    f.close if f.instance_of?(Zlib::GzipReader)
+    return f
+  end
+end
+
 
 include AbortIf
 include AbortIf::Assert
 
-inf = ARGV.first
+# inf = ARGV.first
+inf = "test_files/ami.test.fq.gz"
 
 rec_num = 0
 prefixs = {}
-still_paired = {}
+still_paired = Set.new
 warn "Checking #{inf} for paired reads"
 
 ffout = "#{inf}.forward.fq"
@@ -39,38 +80,26 @@ File.open(ffout, "w") do |ff|
       $stderr.printf("Reading record: %d\r", rec_num) if (rec_num % 10_000).zero?
       rec_num += 1
 
-      prefix = head.split(" ").first
+      current_prefix = head.split(" ")[0]
 
-      abort_if prefix.nil? || prefix.empty?,
+      abort_if current_prefix.nil? || current_prefix.empty?,
                "Something wrong with #{head}"
 
-      if prefixs.has_key? prefix
-        abort_if still_paired.has_key?(prefix),
-                 "Prefix #{prefix} was seen more than twice"
+      if prefixs.has_key? current_prefix
+        abort_if still_paired.include?(current_prefix),
+                 "Prefix #{current_prefix} was seen more than twice"
 
-        o_head, o_seq, o_desc, o_qual = prefixs[prefix]
-        still_paired[prefix] = rec_num
+        o_head, o_seq, o_desc, o_qual = prefixs[current_prefix]
+        still_paired << current_prefix
 
-        if o_head.match("1:N:0") && head.match("2:N:0")
-          ff.puts "@#{o_head}"
-          ff.puts o_seq
-          ff.puts "+#{o_desc}"
-          ff.puts o_qual
+        if o_head.include?("1:N:0") && head.include?("2:N:0")
+          ff.puts "@#{o_head}\n#{o_seq}\n+#{o_desc}\n#{o_qual}"
 
-          rf.puts "@#{head}"
-          rf.puts seq
-          rf.puts "+#{desc}"
-          rf.puts qual
-        elsif o_head.match("2:N:0") && head.match("1:N:0")
-          rf.puts "@#{o_head}"
-          rf.puts o_seq
-          rf.puts "+#{o_desc}"
-          rf.puts o_qual
+          rf.puts "@#{head}\n#{seq}\n+#{desc}\n#{qual}"
+        elsif o_head.include?("2:N:0") && head.include?("1:N:0")
+          rf.puts "@#{o_head}\n#{o_seq}\n+#{o_desc}\n#{o_qual}"
 
-          ff.puts "@#{head}"
-          ff.puts seq
-          ff.puts "+#{desc}"
-          ff.puts qual
+          ff.puts "@#{head}\n#{seq}\n+#{desc}\n#{qual}"
         else
           msg =
             "Couldn't determine orientation for #{head} and #{o_head}"
@@ -79,7 +108,7 @@ File.open(ffout, "w") do |ff|
         end
 
       else
-        prefixs[prefix] = [head, seq, desc, qual]
+        prefixs[current_prefix] = [head, seq, desc, qual]
       end
     end
   end
@@ -90,13 +119,10 @@ warn "Wrote #{rfout}"
 
 sfout = "#{inf}.single.fq"
 File.open(sfout, "w") do |f|
-  (prefixs.keys - still_paired.keys).each do |unpaired_prefix|
+  (prefixs.keys - still_paired.to_a).each do |unpaired_prefix|
     head, seq, desc, qual = prefixs[unpaired_prefix]
 
-    f.puts "@#{head}"
-    f.puts seq
-    f.puts "+#{desc}"
-    f.puts qual
+    f.puts "@#{head}\n#{seq}\n+#{desc}\n#{qual}"
   end
 end
 warn "Wrote #{sfout}"
