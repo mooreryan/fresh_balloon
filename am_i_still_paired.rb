@@ -21,50 +21,10 @@ require "parse_fasta"
 require "abort_if"
 require "set"
 
-# monkey patch parse_fasta for speeeeed
-class FastqFile
-  def each_record
-    count = 0
-    header = ''
-    sequence = ''
-    description = ''
-    quality = ''
-
-    begin
-      f = Zlib::GzipReader.open(self)
-    rescue Zlib::GzipFile::Error => e
-      f = self
-    end
-
-    f.each_line do |line|
-      line.chomp!
-
-      case count % 4
-      when 0
-        header = line[1..-1] # line.sub(/^@/, '')
-      when 1
-        sequence = line # Sequence.new(line)
-      when 2
-        description = line[1..-1] # line.sub(/^\+/, '')
-      when 3
-        quality = line # Quality.new(line)
-        yield(header, sequence, description, quality)
-      end
-
-      count += 1
-    end
-
-    f.close if f.instance_of?(Zlib::GzipReader)
-    return f
-  end
-end
-
-
 include AbortIf
 include AbortIf::Assert
 
-# inf = ARGV.first
-inf = "test_files/ami.test.fq.gz"
+inf = ARGV.first
 
 rec_num = 0
 prefixs = {}
@@ -76,7 +36,7 @@ rfout = "#{inf}.reverse.fq"
 
 File.open(ffout, "w") do |ff|
   File.open(rfout, "w") do |rf|
-    FastqFile.open(inf).each_record do |head, seq, desc, qual|
+    FastqFile.open(inf).each_record_fast do |head, seq, desc, qual|
       $stderr.printf("Reading record: %d\r", rec_num) if (rec_num % 10_000).zero?
       rec_num += 1
 
@@ -119,10 +79,14 @@ warn "Wrote #{rfout}"
 
 sfout = "#{inf}.single.fq"
 File.open(sfout, "w") do |f|
-  (prefixs.keys - still_paired.to_a).each do |unpaired_prefix|
-    head, seq, desc, qual = prefixs[unpaired_prefix]
+  prefixs.each_with_index do |(prefix, info), idx|
+    unless still_paired.include? prefix
+      $stderr.printf("Processing unpaired: %d\r", idx) if (idx % 10_000).zero?
+      head, seq, desc, qual = info
 
-    f.puts "@#{head}\n#{seq}\n+#{desc}\n#{qual}"
+      f.puts "@#{head}\n#{seq}\n+#{desc}\n#{qual}"
+    end
   end
 end
+$stderr.puts
 warn "Wrote #{sfout}"

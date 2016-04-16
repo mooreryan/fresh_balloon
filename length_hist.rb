@@ -22,10 +22,14 @@ require "parse_fasta"
 lengths = []
 ARGV.each do |fname|
   warn "Processing: #{fname}"
-  FastaFile.open(fname).each_record do |head, seq|
+  n = 0
+  SeqFile.open(fname).each_record_fast do |head, seq|
+    n += 1
+    $stderr.printf("LOG -- processing: %d\r", n) if (n % 10_000).zero?
     lengths << seq.length
   end
 end
+$stderr.puts
 
 max = lengths.max
 
