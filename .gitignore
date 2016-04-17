@@ -1,5 +1,12 @@
-test_files
-am_i_still_paired
-time.html
 .crystal
 bin
+test_files
+time.html
+
+am_i_still_paired/bin
+am_i_still_paired/doc/
+am_i_still_paired/libs/
+am_i_still_paired/.crystal/
+am_i_still_paired/.shards/
+am_i_still_paired/shard.lock
+am_i_still_paired_old

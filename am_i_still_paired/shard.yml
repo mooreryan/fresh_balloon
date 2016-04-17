@@ -1,0 +1,11 @@
+name: am_i_still_paired
+version: 0.0.1
+
+authors:
+  - Ryan Moore <moorer@udel.edu>
+
+license: MIT
+
+dependencies:
+  bio:
+    github: mooreryan/biocrystal
