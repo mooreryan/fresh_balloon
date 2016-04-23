@@ -1,4 +1,5 @@
 require "parse_fasta"
+require "set"
 
 blast_f = ARGV[0]
 contigs_f = ARGV[1]
@@ -16,9 +17,9 @@ File.open(blast_f).each_line do |line|
   names << orfmatch[1]
 end
 
+names = Set.new names
+
 FastaFile.open(contigs_f).each_record_fast do |head, seq|
   n += 1; $stderr.printf("Reading fasta: %d\r", n) if (n % 10_000).zero?
-  if orfs.any? { |orf| orf == head }
-    puts ">#{head}\n#{seq}"
-  end
+  puts ">#{head}\n#{seq}" if names.include?(head)
 end
