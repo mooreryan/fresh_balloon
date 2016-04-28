@@ -22,9 +22,9 @@
 total = 0
 ARGV.each do |fname|
   if fname.match(/.gz$/)
-    num_seqs = `gunzip -c #{fname} | grep -c "^>"`
+    num_seqs = `gunzip -c #{fname} | grep -c "^>"`.chomp.to_i
   else
-    num_seqs = `grep -c "^>" #{fname}`
+    num_seqs = `grep -c "^>" #{fname}`.chomp.to_i
   end
 
   puts [fname, num_seqs].join "\t"
