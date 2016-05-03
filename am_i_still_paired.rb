@@ -24,7 +24,21 @@ require "set"
 include AbortIf
 include AbortIf::Assert
 
-inf = ARGV.first
+VERSION = "0.1.0"
+
+if ARGV[0] == "-v" || ARGV[0] == "--version"
+  warn "VERSION -- #{VERSION}"
+  exit
+end
+
+rev_num = ARGV[0]
+inf = ARGV[1]
+
+abort_unless ARGV.count == 2,
+             "USAGE -- am_i_still_paired.rb reverse_read_specifier reads.fastq"
+
+abort_unless rev_num == "2" || rev_num == "3",
+             "the first arg must be either 2 or 3"
 
 rec_num = 0
 prefixs = {}
@@ -52,11 +66,11 @@ File.open(ffout, "w") do |ff|
         o_head, o_seq, o_desc, o_qual = prefixs[current_prefix]
         still_paired << current_prefix
 
-        if o_head.include?("1:N:0") && head.include?("2:N:0")
+        if o_head.include?("1:N:0") && head.include?("#{rev_num}:N:0")
           ff.puts "@#{o_head}\n#{o_seq}\n+#{o_desc}\n#{o_qual}"
 
           rf.puts "@#{head}\n#{seq}\n+#{desc}\n#{qual}"
-        elsif o_head.include?("2:N:0") && head.include?("1:N:0")
+        elsif o_head.include?("#{rev_num}:N:0") && head.include?("1:N:0")
           rf.puts "@#{o_head}\n#{o_seq}\n+#{o_desc}\n#{o_qual}"
 
           ff.puts "@#{head}\n#{seq}\n+#{desc}\n#{qual}"
