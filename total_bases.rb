@@ -19,19 +19,22 @@
 
 require "parse_fasta"
 
-total = 0
-total_n = 0
+total_bases = 0
+total_contigs = 0
 ARGV.each do |fname|
-  sub_total = 0
-  n = 0
+  num_contigs = 0
+  num_bases = 0
   FastaFile.open(fname).each_record_fast do |_, seq|
-    n += 1
+    num_contigs += 1
     len = seq.length
-    total += len
-    sub_total += len
+    num_bases += len
   end
-  total_n += n
-  warn "#{fname}: #{sub_total} #{(sub_total/n.to_f).round(2)}"
+
+  total_contigs += num_contigs
+  total_bases += num_bases
+  warn "#{fname}: #{num_bases} #{num_contigs} " +
+       "#{(num_bases/num_contigs.to_f).round(2)} "
 end
 
-puts "Total: #{total} #{(total/total_n.to_f).round(2)}"
+puts "Total: #{total_bases} #{total_contigs} " +
+     "#{(total_bases/total_contigs.to_f).round(2)}"
