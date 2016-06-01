@@ -12,7 +12,7 @@ end
 
 fname = ARGV.shift
 op = ARGV.shift
-columns = ARGV
+columns = ARGV.map(&:to_i)
 
 warn "File: #{fname}"
 warn "Operation #{op.to_sym.inspect}"
@@ -21,7 +21,7 @@ warn "Columns requested: #{columns.inspect}"
 File.open(fname).each_line do |line|
   ary = line.chomp.split "\t"
 
-  result = columns.map { |colnum| ary[colnum.to_i-1].to_f }.reduce(op.to_sym)
+  result = columns.map { |colnum| ary[colnum-1].to_f }.reduce(op.to_sym)
 
   puts [ary, result].join "\t"
 end
