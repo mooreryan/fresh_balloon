@@ -37,6 +37,8 @@ include AbortIf
 include AbortIf::Assert
 
 opts = Trollop.options do
+  version "v0.2.0"
+
   banner <<-EOS
 
   Assumes reads are in same order.
@@ -76,7 +78,7 @@ begin
 
   AbortIf.logger.info { "Processing #{opts[:fastq]}" }
   rec = 0
-  FastqFile.open(opts[:fastq]).each_record do |head, seq, desc, qual|
+  FastqFile.open(opts[:fastq]).each_record_fast do |head, seq, desc, qual|
     $stderr.printf("Record: %d\r", rec) if (rec % 10_000).zero?
     rec += 1
 
