@@ -24,8 +24,11 @@ opts = Trollop.options do
   opt(:outdir, "Output directory", type: :string, default: ".")
 end
 
+STDERR.puts "Reading records"
 records = []
+n = 0
 FastqFile.open(opts[:fastq]).each_record_fast do |head, seq, desc, qual|
+  n+=1;STDERR.printf("Reading -- %d\r",n) if (n%10_000).zero?
   records << ["@#{head}", seq, "+#{desc}", qual]
 end
 
@@ -35,7 +38,9 @@ FileUtils.mkdir_p opts[:outdir]
 
 opts[:num].times do |n|
   File.open(File.join(opts[:outdir], "#{opts[:basename]}.#{n}.fq"), "w") do |f|
-    num_records.times do
+    STDERR.puts "Writing #{f.path}"
+    num_records.times do |rec_num|
+      STDERR.printf("Writing record -- %d\r", rec_num) if (rec_num%10_000).zero?
       f.puts records[rand 0 .. (num_records-1)]
     end
   end
