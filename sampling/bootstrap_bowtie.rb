@@ -21,6 +21,7 @@ end
 def bowtie bowtie, samtools, index, infastq, outbam, threads
   cmd = "#{bowtie} -x #{index} " +
         "--no-unal " +
+        "--non-deterministic " +
         "--threads #{threads} " +
         "--very-sensitive-local " +
         "--local " +
@@ -58,6 +59,11 @@ opts = Trollop.options do
   bowtie for recruitment to the given index. #BootstrappedRecruitment
 
   Note: reads whole file into memory
+
+  Note: Say you have 10,000 seqs. Each bootstrap will have 10,000 seqs
+  in it, but there will almost certainly be repeats and some seqs
+  ommited. Bowtie2 stderr often reports slightly less than 10,000 seqs
+  aligned. Not sure what this means.
 
   Options:
   EOS
@@ -103,7 +109,8 @@ opts[:num].times do |n|
     # write the file
     num_records.times do |rec_num|
       STDERR.printf("Writing record -- %d\r", rec_num) if (rec_num%10_000).zero?
-      f.puts records[rand 0 .. (num_records-1)]
+      which = rand 0 .. (num_records-1)
+      f.puts records[which]
     end
 
     bowtie opts[:bowtie],
@@ -115,6 +122,6 @@ opts[:num].times do |n|
 
     depth opts[:samtools], opts[:cov_var], outbam, depth_f
 
-    FileUtils.rm f.path
+    # FileUtils.rm f.path
   end
 end
