@@ -1,25 +1,21 @@
 #!/usr/bin/env ruby
 
-module CoreExtensions
-  module Process
-    def run_it *a, &b
-      exit_status, stdout, stderr = systemu *a, &b
+def run_it *a, &b
+  exit_status, stdout, stderr = systemu *a, &b
 
-      puts stdout unless stdout.empty?
-      $stderr.puts stderr unless stderr.empty?
+  puts stdout unless stdout.empty?
+  $stderr.puts stderr unless stderr.empty?
 
-      exit_status.exitstatus
-    end
+  exit_status.exitstatus
+end
 
-    def run_it! *a, &b
-      exit_status = self.run_it *a, &b
+def run_it! *a, &b
+  exit_status = run_it *a, &b
 
-      AbortIf::Abi.abort_unless exit_status.zero?,
-                       "ERROR: non-zero exit status (#{exit_status})"
+  AbortIf::Abi.abort_unless exit_status.zero?,
+                            "ERROR: non-zero exit status (#{exit_status})"
 
-      exit_status
-    end
-  end
+  exit_status
 end
 
 def bowtie index, infastq, outbam, threads
@@ -36,7 +32,8 @@ def bowtie index, infastq, outbam, threads
         "--threads #{threads} -b -S - " +
         "> #{outbam}"
 
-  Process.run_it! cmd
+  STDERR.puts "Running #{cmd}"
+  run_it! cmd
 end
 
 require "trollop"
@@ -45,7 +42,6 @@ require "fileutils"
 require "systemu"
 require "abort_if"
 
-Process.include CoreExtensions::Process
 include AbortIf
 
 Signal.trap("PIPE", "EXIT")
@@ -54,7 +50,8 @@ opts = Trollop.options do
   version "Version: 0.1.0"
   banner <<-EOS
 
-  Outputs monte carlo bootstraps of the input fastq file.
+  Outputs monte carlo bootstraps of the input fastq file, then uses
+  bowtie for recruitment to the given index. #BootstrappedRecruitment
 
   Note: reads whole file into memory
 
