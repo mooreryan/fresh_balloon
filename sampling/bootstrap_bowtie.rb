@@ -12,8 +12,8 @@ end
 def run_it! *a, &b
   exit_status = run_it *a, &b
 
-  AbortIf::Abi.abort_unless exit_status.zero?,
-                            "ERROR: non-zero exit status (#{exit_status})"
+  abort_unless exit_status.zero?,
+               "ERROR: non-zero exit status (#{exit_status})"
 
   exit_status
 end
