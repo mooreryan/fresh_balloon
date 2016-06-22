@@ -18,10 +18,7 @@ def run_it! *a, &b
   exit_status
 end
 
-def bowtie index, infastq, outbam, threads
-  bowtie = "/home/moorer/bin/bowtie2"
-  samtools = "/home/moorer/bin/samtools"
-
+def bowtie bowtie, samtools, index, infastq, outbam, threads
   cmd = "#{bowtie} -x #{index} " +
         "--no-unal " +
         "--threads #{threads} " +
@@ -31,6 +28,13 @@ def bowtie index, infastq, outbam, threads
         "#{samtools} view " +
         "--threads #{threads} -b -S - " +
         "> #{outbam}"
+
+  STDERR.puts "Running #{cmd}"
+  run_it! cmd
+end
+
+def depth samtools, cov_var, inbam, outf
+  cmd = "#{samtools} depth -aa #{inbam} | #{cov_var} > #{outf}"
 
   STDERR.puts "Running #{cmd}"
   run_it! cmd
@@ -65,6 +69,12 @@ opts = Trollop.options do
   opt(:outdir, "Output directory", type: :string, default: ".")
   opt(:index, "Bowtie2 index", type: :string)
   opt(:threads, "Number of threads", type: :integer, default: 1)
+  opt(:bowtie, "Path to bowtie executable", type: :string,
+      default: "~/bin/bowtie2")
+  opt(:samtools, "Path to samtools executable", type: :string,
+      default: "~/bin/samtools")
+  opt(:cov_var, "Path to coverage_variance executable", type: :string,
+      default: "~/bin/coverage_variance")
 end
 
 abort_unless_file_exists opts[:fastq]
@@ -85,6 +95,7 @@ FileUtils.mkdir_p opts[:outdir]
 opts[:num].times do |n|
   this_fastq = File.join opts[:outdir], "#{opts[:basename]}.#{n}.fq"
   outbam = File.join opts[:outdir], "#{opts[:basename]}.#{n}.bam"
+  depth_f = File.join opts[:outdir], "#{opts[:basename]}.#{n}.coverage.txt"
 
   File.open(this_fastq, "w") do |f|
     STDERR.puts "Writing #{f.path}"
@@ -95,7 +106,14 @@ opts[:num].times do |n|
       f.puts records[rand 0 .. (num_records-1)]
     end
 
-    bowtie opts[:index], f, outbam, opts[:threads]
+    bowtie opts[:bowtie],
+           opts[:samtools],
+           opts[:index],
+           f.path,
+           outbam,
+           opts[:threads]
+
+    depth opts[:samtools], opts[:cov_var], outbam, depth_f
 
     FileUtils.rm f.path
   end
