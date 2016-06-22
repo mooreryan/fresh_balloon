@@ -27,8 +27,14 @@ def bowtie bowtie, samtools, index, infastq, outbam, threads
         "--local " +
         "-U #{infastq} | " +
         "#{samtools} view " +
-        "--threads #{threads} -b -S - " +
+        "--threads #{threads} -S -b | " +
+        "#{samtools} sort --threads #{threads} " +
         "> #{outbam}"
+
+  STDERR.puts "Running #{cmd}"
+  run_it! cmd
+
+  cmd = "#{samtools} index #{outbam} #{outbam}.bai"
 
   STDERR.puts "Running #{cmd}"
   run_it! cmd
@@ -42,7 +48,7 @@ def depth samtools, cov_var, inbam, outf
 end
 
 require "trollop"
-require "parse_fasta"
+require "bio/kseq"
 require "fileutils"
 require "systemu"
 require "abort_if"
@@ -52,7 +58,7 @@ include AbortIf
 Signal.trap("PIPE", "EXIT")
 
 opts = Trollop.options do
-  version "Version: 0.1.0"
+  version "Version: 0.2.0"
   banner <<-EOS
 
   Outputs monte carlo bootstraps of the input fastq file, then uses
@@ -89,10 +95,18 @@ abort_unless_file_exists opts[:index]
 STDERR.puts "Reading records"
 records = []
 n = 0
-FastqFile.open(opts[:fastq]).each_record_fast do |head, seq, desc, qual|
+# FastqFile.open(opts[:fastq]).each_record_fast do |head, seq, desc, qual|
+#   n+=1;STDERR.printf("Reading -- %d\r",n) if (n%10_000).zero?
+#   records << ["@#{head}", seq, "+#{desc}", qual]
+# end
+
+kseq = Bio::Kseq.new(opts[:fastq])
+while kseq.read!
   n+=1;STDERR.printf("Reading -- %d\r",n) if (n%10_000).zero?
-  records << ["@#{head}", seq, "+#{desc}", qual]
+
+  records << [kseq.seq, kseq.qual]
 end
+
 
 num_records = records.count
 
@@ -100,7 +114,7 @@ FileUtils.mkdir_p opts[:outdir]
 
 opts[:num].times do |n|
   this_fastq = File.join opts[:outdir], "#{opts[:basename]}.#{n}.fq"
-  outbam = File.join opts[:outdir], "#{opts[:basename]}.#{n}.bam"
+  outbam = File.join opts[:outdir], "#{opts[:basename]}.#{n}.sorted.bam"
   depth_f = File.join opts[:outdir], "#{opts[:basename]}.#{n}.coverage.txt"
 
   File.open(this_fastq, "w") do |f|
@@ -110,7 +124,10 @@ opts[:num].times do |n|
     num_records.times do |rec_num|
       STDERR.printf("Writing record -- %d\r", rec_num) if (rec_num%10_000).zero?
       which = rand 0 .. (num_records-1)
-      f.puts records[which]
+      record = records[which]
+      seq = record[0]
+      qual = record[1]
+      f.puts "@seq_#{rec_num}\n#{seq}\n+\n#{qual}"
     end
 
     bowtie opts[:bowtie],
@@ -122,6 +139,6 @@ opts[:num].times do |n|
 
     depth opts[:samtools], opts[:cov_var], outbam, depth_f
 
-    # FileUtils.rm f.path
+    FileUtils.rm f.path
   end
 end
