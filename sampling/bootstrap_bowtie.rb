@@ -112,10 +112,14 @@ num_records = records.count
 
 FileUtils.mkdir_p opts[:outdir]
 
+coverage_files = []
+
 opts[:num].times do |n|
   this_fastq = File.join opts[:outdir], "#{opts[:basename]}.#{n}.fq"
   outbam = File.join opts[:outdir], "#{opts[:basename]}.#{n}.sorted.bam"
   depth_f = File.join opts[:outdir], "#{opts[:basename]}.#{n}.coverage.txt"
+
+  coverage_files << depth_f
 
   File.open(this_fastq, "w") do |f|
     STDERR.puts "Writing #{f.path}"
@@ -140,5 +144,33 @@ opts[:num].times do |n|
     depth opts[:samtools], opts[:cov_var], outbam, depth_f
 
     FileUtils.rm f.path
+  end
+end
+
+STDERR.puts "Collating coverage info"
+ref_cov = {}
+coverage_files.each do |fname|
+  File.open(fname).each_line do |line|
+    unless line.start_with? "contig\tcontig.length"
+      ref, len, cov, *rest = line.chomp.split "\t"
+
+      if ref_cov.has_key? ref
+        ref_cov[ref] << cov.to_f
+      else
+        ref_cov[ref] = [cov.to_f]
+      end
+    end
+  end
+end
+
+STDERR.puts "Writing collated coverage info"
+outf = File.join opts[:outdir], "#{opts[:basename]}.collated.coverage.txt"
+File.open(outf, "w") do |f|
+  f.puts ["reference", opts[:num].times.map { |n| "rep.#{n}" }].flatten.join "\t"
+  ref_cov.each do |ref, covs|
+    abort_unless covs.length == opts[:num],
+                 "Missing some coverages for #{ref}"
+
+    f.puts [ref, covs].flatten.join "\t"
   end
 end
