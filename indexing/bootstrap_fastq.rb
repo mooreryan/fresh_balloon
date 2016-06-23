@@ -22,6 +22,10 @@ def index_fastq fname
           count = -1
           outf.puts [seq_num, seq_offset, qual_offset].join "\t"
           seq_num += 1
+
+          if (seq_num % 10_000).zero?
+            STDERR.printf("READING -- %d\r", seq_num)
+          end
         end
 
         count += 1
