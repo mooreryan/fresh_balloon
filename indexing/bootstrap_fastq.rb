@@ -101,3 +101,4 @@ File.open(fq_f) do |f|
     end
   end
 end
+STDERR.puts "\n"
