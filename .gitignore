@@ -14,3 +14,4 @@ am_i_still_paired_old
 output
 
 indexing/test_files
+indexing/*log*

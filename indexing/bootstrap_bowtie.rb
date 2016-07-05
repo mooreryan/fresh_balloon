@@ -8,6 +8,10 @@ include AbortIf
 now = Time.now.strftime("%Y-%m-%d_%H-%M-%S.%L")
 LOG = File.join File.dirname(__FILE__), "bootstrap_bowtie.log.#{now}.txt"
 
+def basename fname
+  File.basename(fname, File.extname(fname))
+end
+
 def say_it cmd
   logger.info "Running #{cmd}"
 end
@@ -30,12 +34,35 @@ def run_it! *a, &b
   exit_status
 end
 
-def bowtie_index bowtie, infastq
-  # TODO check if index already exists
-  cmd = "#{bowtie}-build #{infastq} #{infastq} >> #{LOG} 2>&1"
+def files_exist? glob
+  status = run_it "ls #{glob} > /dev/null"
 
-  say_it cmd
-  run_it! cmd
+  if status.zero?
+    true
+  else
+    false
+  end
+end
+
+def bowtie_index bowtie, infastq, outdir
+  # TODO check if index already exists
+  base = File.basename(infastq, File.extname(infastq))
+  out = File.join outdir, "#{base}"
+
+  glob = "#{out}.*.bt2"
+
+  if files_exist? glob
+    logger.info { "Using bowtie2 index: #{glob}" }
+  else
+    logger.info { "Creating bowtie2 index: #{glob}" }
+
+    cmd = "#{bowtie}-build #{infastq} #{out} >> #{LOG} 2>&1"
+
+    say_it cmd
+    run_it! cmd
+  end
+
+  out
 end
 
 def bowtie bowtie, samtools, index, infastq, outbam, threads
@@ -67,9 +94,9 @@ def depth samtools, cov_var, inbam, outf
   run_it! cmd
 end
 
-def index_fastq fname
+def index_fastq fname, outf
   File.open(fname, "rt") do |f|
-    File.open(fname + ".fqi", "w") do |outf|
+    File.open(outf, "w") do |outf|
       count = 0
       seq_num = 0
       seq_offset = 0
@@ -114,7 +141,7 @@ end
 Signal.trap("PIPE", "EXIT")
 
 opts = Trollop.options do
-  version "Version: 0.1.0"
+  version "Version: 0.1.1"
   banner <<-EOS
 
   Outputs monte carlo bootstraps of the input fastq file, then uses
@@ -148,14 +175,21 @@ end
 abort_unless_file_exists opts[:reads]
 abort_unless_file_exists opts[:references]
 
-FileUtils.mkdir_p opts[:outdir]
+if File.exists?(opts[:outdir])
+  logger.info { "Outdir: #{opts[:outdir]} exists, we will try to " +
+                "use files in there when appropriate." }
+else
+  FileUtils.mkdir_p opts[:outdir]
+end
 
 coverage_files = []
 
 num_samples = opts[:num]
 fq_f = opts[:reads]
 
-fqi_f = fq_f + ".fqi"
+
+fq_base = basename fq_f
+fqi_f = File.join opts[:outdir], "#{fq_base}.fq.fqi"
 
 logger.info { "Num samples: #{num_samples}" }
 logger.info { "FastQ input: #{fq_f}" }
@@ -165,7 +199,7 @@ if File.exists? fqi_f
 else
   logger.info { "Creating index: #{fqi_f}" }
 
-  index_fastq fq_f
+  index_fastq fq_f, fqi_f
 end
 
 logger.info { "Reading index" }
@@ -181,7 +215,8 @@ end
 num_seqs = index.count
 logger.info { "Number of sequences in #{fq_f}: #{num_seqs}" }
 
-bowtie_index opts[:bowtie], opts[:references]
+logger.info { "Indexing for bowtie 2" }
+bt_idx = bowtie_index opts[:bowtie], opts[:references], opts[:outdir]
 
 boot_seqs_path = File.dirname fq_f
 boot_seqs_base = File.basename(fq_f, File.extname(fq_f))
@@ -217,12 +252,16 @@ File.open(fq_f) do |f|
 
     bowtie opts[:bowtie],
            opts[:samtools],
-           opts[:references],
+           bt_idx,
            f.path,
            outbam,
            opts[:threads]
 
     depth opts[:samtools], opts[:cov_var], outbam, outcov
+
+    File.delete boot_seqs_outfile
+    File.delete outbam
+    File.delete "#{outbam}.bai"
   end
 end
 
@@ -260,17 +299,5 @@ File.open(outf, "w") do |f|
   end
 end
 logger.info { "Collated coverage file: #{outf}" }
-
-logger.info { "Cleaning outdir" }
-
-glob = File.join opts[:outdir], "*.fq"
-run_it! "rm #{glob}"
-
-glob = File.join opts[:outdir], "*.coverage.txt"
-run_it! "rm #{glob}"
-
-glob = File.join opts[:outdir], "*.bam*"
-run_it! "rm #{glob}"
-
 
 logger.info { "Finished" }
