@@ -17,6 +17,8 @@
 # along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 
+# LAST UPDATE: Make it work with ParseFasta2
+
 def count_seqs_fast fname
   if fname.match(/.gz$/)
     num_seqs = (`gunzip -c #{fname} | wc -l`.to_f / 4).round
@@ -37,7 +39,7 @@ include AbortIf
 include AbortIf::Assert
 
 opts = Trollop.options do
-  version "Version: v0.2.0"
+  version "Version: v0.3.0"
   banner <<-EOS
 
   Assumes reads are in same order.
@@ -69,6 +71,10 @@ abort_unless forward_seq_num == reverse_seq_num,
 
 num_seqs = forward_seq_num
 
+abort_unless opts[:num_reads] <= num_seqs,
+             "--num-reads (#{opts[:num_reads]}) was greater than" +
+             "the total number of sequences (#{num_reads})"
+
 arr = (1..num_seqs).to_a
 reads_to_take =
   opts[:num_samples].times.map do
@@ -78,35 +84,38 @@ end
 begin
   outfiles = { forward: [], reverse: [] }
   opts[:num_samples].times do |n|
-    ffname = File.join opts[:outdir], "#{opts[:basename]}.subset_#{n}.1.fq"
-    rfname = File.join opts[:outdir], "#{opts[:basename]}.subset_#{n}.2.fq"
+    ffname = File.join opts[:outdir],
+                       "#{opts[:basename]}.subset_#{n}.1.fq"
+    rfname = File.join opts[:outdir],
+                       "#{opts[:basename]}.subset_#{n}.2.fq"
+
     outfiles[:forward] << File.open(ffname, "w")
     outfiles[:reverse] << File.open(rfname, "w")
   end
 
   AbortIf.logger.info { "Processing #{opts[:forward]}" }
-  rec = 0
-  FastqFile.open(opts[:forward]).each_record_fast do |head, seq, desc, qual|
-    $stderr.printf("Record: %d\r", rec) if (rec % 10_000).zero?
-    rec += 1
+  recno = 0
+  ParseFasta::SeqFile.open(opts[:forward]).each_record do |rec|
+    $stderr.printf("Record: %d\r", recno) if (recno % 10_000).zero?
+    recno += 1
 
     reads_to_take.each_with_index do |rec_numbers, idx|
-      if rec_numbers.include? rec
-        outfiles[:forward][idx].printf "@%s\n%s\n+%s\n%s\n", head, seq, desc, qual
+      if rec_numbers.include? recno
+        outfiles[:forward][idx].puts rec
       end
     end
   end
   $stderr.puts
 
   AbortIf.logger.info { "Processing #{opts[:forward]}" }
-  rec = 0
-  FastqFile.open(opts[:reverse]).each_record_fast do |head, seq, desc, qual|
-    $stderr.printf("Record: %d\r", rec) if (rec % 10_000).zero?
-    rec += 1
+  recno = 0
+  ParseFasta::SeqFile.open(opts[:reverse]).each_record do |rec|
+    $stderr.printf("Record: %d\r", recno) if (recno % 10_000).zero?
+    recno += 1
 
     reads_to_take.each_with_index do |rec_numbers, idx|
-      if rec_numbers.include? rec
-        outfiles[:reverse][idx].printf "@%s\n%s\n+%s\n%s\n", head, seq, desc, qual
+      if rec_numbers.include? recno
+        outfiles[:reverse][idx].puts rec
       end
     end
   end
