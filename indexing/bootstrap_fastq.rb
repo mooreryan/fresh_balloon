@@ -10,6 +10,7 @@ def index_fastq fname
       seq_offset = 0
       qual_offset = 0
 
+      lines = []
       f.each_line do
         case count
         when 0 # header
@@ -20,12 +21,10 @@ def index_fastq fname
           qual_offset = f.tell
         when 3 # qual
           count = -1
-          outf.puts [seq_num, seq_offset, qual_offset].join "\t"
-          seq_num += 1
 
-          if (seq_num % 10_000).zero?
-            STDERR.printf("READING -- %d\r", seq_num)
-          end
+          outf.puts "#{seq_num}\t#{seq_offset}\t#{qual_offset}"
+
+          seq_num += 1
         end
 
         count += 1
@@ -60,13 +59,13 @@ fqi_f = fq_f + ".fqi"
 logger.info { "Num samples: #{num_samples}" }
 logger.info { "FastQ input: #{fq_f}" }
 
-if File.exists? fqi_f
-  logger.info { "Using index: #{fqi_f}" }
-else
+# if File.exists? fqi_f
+#   logger.info { "Using index: #{fqi_f}" }
+# else
   logger.info { "Creating index: #{fqi_f}" }
 
   index_fastq fq_f
-end
+# end
 
 logger.info { "Reading index" }
 index = {}

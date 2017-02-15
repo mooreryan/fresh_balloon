@@ -51,16 +51,16 @@ def bowtie_index bowtie, infastq, outdir
 
   glob = "#{out}.*.bt2"
 
-  if files_exist? glob
-    logger.info { "Using bowtie2 index: #{glob}" }
-  else
+  # if files_exist? glob
+  #   logger.info { "Using bowtie2 index: #{glob}" }
+  # else
     logger.info { "Creating bowtie2 index: #{glob}" }
 
     cmd = "#{bowtie}-build #{infastq} #{out} >> #{LOG} 2>&1"
 
     say_it cmd
     run_it! cmd
-  end
+  # end
 
   out
 end

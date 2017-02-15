@@ -38,6 +38,8 @@ ParseFasta::SeqFile.open(ARGV.first).each_record do |rec|
     puts ">read_#{read_num+1} zero_based_start_pos_#{start} " +
          "len_#{read_len} from #{rec.header}\n#{read}"
   end
+
+  break
 end
 
 AbortIf.logger.info { "DONE! Wrote #{num_reads} reads of length " +
