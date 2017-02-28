@@ -7,21 +7,21 @@
 
 #include "kseq.h"
 
-#define VERSION "0.1.0"
+#define VERSION "0.2.0"
 
 KSEQ_INIT(gzFile, gzread)
 
 /* from http://www.c-faq.com/lib/randrange.kirby.html */
 int randnum(int range)
 {
-    int divisor = RAND_MAX / range;
-    int threshold = RAND_MAX - RAND_MAX % range;
-    int randval;
+  int divisor = RAND_MAX / range;
+  int threshold = RAND_MAX - RAND_MAX % range;
+  int randval;
 
-    while ((randval = rand()) >= threshold)
-        ;
+  while ((randval = rand()) >= threshold)
+    ;
 
-    return randval / divisor;
+  return randval / divisor;
 }
 
 void print_record(kseq_t *seq) {
@@ -61,18 +61,21 @@ int main(int argc, char *argv[])
   gzFile fp;
 
 
-    if (argc != 3) {
-    fprintf(stderr, "Given fasta output seqs at least N bases long.\nVERSION: %s\nUsage: %s <percent to sample> <in.fa>\n", VERSION, argv[0]);
+  if (argc != 3) {
+    fprintf(stderr,
+            "VERSION: %s\nUsage: %s <percent to sample> <in.fa/q>\n",
+            VERSION,
+            argv[0]);
 
     return 1;
   }
 
-    percent = strtod(argv[1], NULL);
-    max = 100 / percent;
+  percent = strtod(argv[1], NULL);
+  max = 100 / percent;
 
-    fp = gzopen(argv[2], "r");
+  fp = gzopen(argv[2], "r");
 
-      if (!fp) {
+  if (!fp) {
     fprintf(stderr, "ERROR - could not open %s\n", argv[2]);
 
     return 2;
