@@ -43,9 +43,7 @@ int main(int argc, char *argv[])
     }
 
     while ((l = kseq_read(seq)) >= 0) {
-      printf("%s", seq->name.s);
-      if (seq->comment.s) { printf(" %s", seq->comment.s); }
-      printf("\t%lu\n", seq->seq.l);
+      printf("%s\t%lu\n", seq->name.s, seq->seq.l);
     }
 
     kseq_destroy(seq);
